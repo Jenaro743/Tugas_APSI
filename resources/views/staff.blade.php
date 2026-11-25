@@ -16,7 +16,7 @@
 @php
     $cards = [
         'Produk' => $stats['products'],
-        'Stok tersedia' => $stats['stock'],
+        'Stok tersedia' => $stats['stock'] . ' unit',
         'Menunggu pembayaran' => $stats['pending'],
     ];
     if (auth()->user()->role === 'admin') {
@@ -29,9 +29,44 @@
             <div class="card rounded-4 p-3 text-white">
                 <span class="text-white-50">{{ $label }}</span>
                 <h3 class="accent fw-bold mb-0">{{ $value }}</h3>
+                @if($label === 'Stok tersedia')
+                    <small class="text-white-50">Aksesoris + konsol PS3/PS4; game dan jasa tak terbatas</small>
+                @endif
             </div>
         </div>
     @endforeach
+</div>
+
+<div class="card rounded-4 p-3 mb-3">
+    <h4 class="text-white">Prioritas Pembaruan Stok (SAW)</h4>
+    <p class="text-white-50 mb-3">Aksesoris saja. Bobot contoh: stok saat ini (cost) 60%, penjualan lunas (benefit) 40%. Stok 0 mendapat nilai tertinggi pada kriteria stok.</p>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle text-white">
+            <thead>
+                <tr><th>Peringkat</th><th>Produk</th><th>Stok saat ini</th><th>Terjual lunas</th><th>Skor SAW</th><th>Perbarui stok (+/-)</th></tr>
+            </thead>
+            <tbody>
+                @forelse($stockPriorities as $index => $product)
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>{{ $product->name }}<br><small class="text-white-50">{{ $product->platform }} · {{ $product->category }}</small></td>
+                        <td>{{ $product->stock }}</td>
+                        <td>{{ $product->units_sold }} unit</td>
+                        <td class="accent fw-bold">{{ number_format($product->saw_score, 4, ',', '.') }}</td>
+                        <td>
+                            <form method="post" action="{{ route('products.stock', $product) }}" class="d-flex gap-1">
+                                @csrf
+                                <input class="form-control form-control-sm" name="change" type="number" min="{{ -$product->stock }}" step="1" placeholder="contoh +5" required>
+                                <button class="btn btn-sm btn-success text-nowrap">Simpan</button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6" class="text-center text-white-50">Belum ada game atau aksesoris terdaftar.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <div class="row g-3">
@@ -40,9 +75,9 @@
             <h4 class="text-white">Tambah produk atau aksesoris</h4>
             <form method="post" action="{{ route('products.create') }}" enctype="multipart/form-data" class="row g-2">
                 @csrf
-                <input class="form-control" name="name" placeholder="Nama game atau aksesoris" required>
+                <input class="form-control" name="name" placeholder="Nama game, konsol, atau aksesoris" required>
                 <div class="col-6">
-                    <select name="platform" class="form-select" onchange="toggleServiceFields(this,'create')">
+                    <select name="platform" class="form-select" onchange="toggleProductFields(this.form,'create')">
                         <option value="PS3">PS3</option>
                         <option value="PS4">PS4</option>
                         <option value="Aksesoris">Aksesoris PS</option>
@@ -50,13 +85,14 @@
                     </select>
                 </div>
                 <div class="col-6">
-                    <input name="category" class="form-control" placeholder="Kategori" required>
+                    <input name="category" class="form-control" placeholder="Kategori (isi Konsol untuk stok PS3/PS4)" oninput="toggleProductFields(this.form,'create')" required>
                 </div>
                 <div class="col-6" id="create-price">
-                    <input name="price" type="number" min="0" class="form-control" placeholder="Harga" required>
+                    <input name="price" type="number" min="1" class="form-control" placeholder="Harga" required>
                 </div>
                 <div class="col-6" id="create-stock">
-                    <input name="stock" type="number" min="0" class="form-control" placeholder="Stok" required>
+                    <input name="stock" type="number" min="0" class="form-control" placeholder="Stok unit" style="display:none" disabled>
+                    <span data-unlimited-stock class="form-text text-white-50">Stok tak terbatas untuk game dan jasa</span>
                 </div>
                 <textarea name="description" class="form-control" placeholder="Deskripsi produk"></textarea>
                 <input name="image" type="file" accept="image/*" class="form-control">
@@ -80,7 +116,7 @@
                                 {{ $product->name }}<br>
                                 <small class="text-white">{{ $product->platform }} · {{ $product->category }} · {{ $product->platform==='Jasa' ? 'Tanpa harga' : 'Rp '.number_format($product->price, 0, ',', '.') }}</small>
                             </td>
-                            <td class="fw-bold">{{ $product->platform==='Jasa' ? 'Tak terbatas' : $product->stock }}</td>
+                            <td class="fw-bold">{{ $product->platform === 'Jasa' || (in_array($product->platform, ['PS3', 'PS4'], true) && strcasecmp(trim($product->category), 'Konsol') !== 0) ? 'Tak terbatas' : $product->stock }}</td>
                             <td>
                                 <div class="d-flex gap-1">
                                     <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#editProduct{{ $product->id }}">Edit</button>
@@ -100,6 +136,7 @@
 </div>
 
 @foreach($products as $product)
+@php($unlimitedStock = $product->platform === 'Jasa' || (in_array($product->platform, ['PS3', 'PS4'], true) && strcasecmp(trim($product->category), 'Konsol') !== 0))
 <div class="modal fade" id="editProduct{{ $product->id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -118,7 +155,7 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label text-white">Jenis</label>
-                            <select name="platform" class="form-select" onchange="toggleServiceFields(this,'edit{{ $product->id }}')">
+                            <select name="platform" class="form-select" onchange="toggleProductFields(this.form,'edit{{ $product->id }}')">
                                 <option value="PS3" @selected($product->platform === 'PS3')>PS3</option>
                                 <option value="PS4" @selected($product->platform === 'PS4')>PS4</option>
                                 <option value="Aksesoris" @selected($product->platform === 'Aksesoris')>Aksesoris PS</option>
@@ -127,15 +164,16 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label text-white">Kategori</label>
-                            <input class="form-control" name="category" value="{{ $product->category }}" required>
+                            <input class="form-control" name="category" value="{{ $product->category }}" oninput="toggleProductFields(this.form,'edit{{ $product->id }}')" required>
                         </div>
                         <div class="col-md-4" id="edit{{ $product->id }}-price" @if($product->platform==='Jasa') style="display:none" @endif>
                             <label class="form-label text-white">Harga</label>
-                            <input class="form-control" name="price" type="number" min="0" value="{{ $product->price }}" @if($product->platform!=='Jasa') required @endif>
+                            <input class="form-control" name="price" type="number" min="{{ in_array($product->platform, ['PS3', 'PS4'], true) && strcasecmp(trim($product->category), 'Konsol') !== 0 ? 1 : 0 }}" value="{{ $product->price }}" @if($product->platform!=='Jasa') required @endif>
                         </div>
-                        <div class="col-md-4" id="edit{{ $product->id }}-stock" @if($product->platform==='Jasa') style="display:none" @endif>
-                            <label class="form-label text-white">Stok</label>
-                            <input class="form-control" name="stock" type="number" min="0" value="{{ $product->stock }}" @if($product->platform!=='Jasa') required @endif>
+                        <div class="col-md-4" id="edit{{ $product->id }}-stock">
+                            <label class="form-label text-white">Stok unit</label>
+                            <input class="form-control" name="stock" type="number" min="0" value="{{ $product->stock }}" @if($unlimitedStock) style="display:none" disabled @else required @endif>
+                            <span data-unlimited-stock class="form-text text-white-50" @unless($unlimitedStock) style="display:none" @endunless>Stok tak terbatas untuk game dan jasa</span>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label text-white">Foto baru</label>
@@ -165,7 +203,12 @@
             <tbody>
             @foreach($orders as $order)
                 <tr>
-                    <td><a class="accent" href="{{ route('receipt', $order) }}">{{ $order->number }}</a></td>
+                    <td>
+                        <a class="accent" href="{{ route('receipt', $order) }}">{{ $order->number }}</a>
+                        @if(auth()->user()->role === 'admin' && $order->payment_status === 'Lunas')
+                            <br><a class="btn btn-sm btn-outline-light mt-1" href="{{ route('orders.receipt.print', $order) }}">Cetak struk</a>
+                        @endif
+                    </td>
                     <td>{{ $order->customer_name }}<br><small class="text-white">{{ $order->whatsapp }}</small></td>
                     <td>Rp {{ number_format($order->total, 0, ',', '.') }}</td>
                     <td>{{ $order->payment_method }}<br>{{ $order->payment_status }}</td>
@@ -215,19 +258,32 @@
 </div>
 @endif
 <script>
-function toggleServiceFields(select, suffix) {
-    const isService = select.value === 'Jasa';
+function toggleProductFields(form, suffix) {
+    const platform = form.querySelector('[name="platform"]').value;
+    const category = form.querySelector('[name="category"]').value.trim().toLowerCase();
+    const isService = platform === 'Jasa';
+    const isPlaystation = platform === 'PS3' || platform === 'PS4';
+    const isGame = isPlaystation && category !== 'konsol';
+    const unlimitedStock = isService || isGame;
     const price = document.getElementById(suffix + '-price');
     const stock = document.getElementById(suffix + '-stock');
     if (price) {
         price.style.display = isService ? 'none' : '';
         const priceInput = price.querySelector('input');
-        if (priceInput) priceInput.required = !isService;
+        if (priceInput) {
+            priceInput.required = !isService;
+            priceInput.min = isGame ? '1' : '0';
+        }
     }
     if (stock) {
-        stock.style.display = isService ? 'none' : '';
         const stockInput = stock.querySelector('input');
-        if (stockInput) stockInput.required = !isService;
+        const unlimitedStockMessage = stock.querySelector('[data-unlimited-stock]');
+        if (stockInput) {
+            stockInput.style.display = unlimitedStock ? 'none' : '';
+            stockInput.required = !unlimitedStock;
+            stockInput.disabled = unlimitedStock;
+        }
+        if (unlimitedStockMessage) unlimitedStockMessage.style.display = unlimitedStock ? '' : 'none';
     }
 }
 </script>

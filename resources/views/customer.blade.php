@@ -22,12 +22,17 @@
     @foreach($cart as $id=>$qty)
         @php($product=\App\Models\Product::find($id))
         @if($product)
+            @php($unlimitedStock = $product->platform === 'Jasa' || (in_array($product->platform, ['PS3', 'PS4'], true) && strcasecmp(trim($product->category), 'Konsol') !== 0))
             @php($sum += $product->platform==='Jasa' ? 0 : $product->price*$qty)
             <div class="d-flex align-items-center gap-3 border-bottom border-secondary py-2">
-                <div class="flex-grow-1 text-white">{{ $product->name }} <span class="text-white-50">· {{ $product->platform==='Jasa' ? 'Jasa · Tanpa harga' : 'Rp '.number_format($product->price,0,',','.') }}</span></div>
+                <div class="flex-grow-1 text-white">
+                    {{ $product->name }}
+                    <span class="text-white-50">· {{ $product->platform==='Jasa' ? 'Jasa · Tanpa harga' : 'Rp '.number_format($product->price,0,',','.') }}</span>
+                    <small class="text-white-50">{{ $unlimitedStock ? '· Stok tak terbatas' : '· Stok '.$product->stock }}</small>
+                </div>
                 <form method="post" action="{{ route('cart.update',$product) }}" class="d-flex gap-2">
                     @csrf @method('PATCH')
-                    <input class="form-control" style="width:86px" name="quantity" type="number" min="1" @if($product->platform!=='Jasa') max="{{ $product->stock }}" @endif value="{{ $qty }}">
+                    <input class="form-control" style="width:86px" name="quantity" type="number" min="1" @if(!$unlimitedStock) max="{{ $product->stock }}" @endif value="{{ $qty }}">
                     <button class="btn btn-sm btn-outline-light">Ubah</button>
                 </form>
                 <form method="post" action="{{ route('cart.remove',$product) }}">

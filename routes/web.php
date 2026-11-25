@@ -28,5 +28,6 @@ Route::middleware('auth')->group(function () {
     });
     Route::middleware('role:admin')->group(function () {
         Route::post('/staff', [StoreController::class, 'createStaff'])->name('staff.create');
+        Route::get('/orders/{order}/receipt/print', [StoreController::class, 'printReceipt'])->name('orders.receipt.print');
     });
 });
