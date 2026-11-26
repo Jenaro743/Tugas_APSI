@@ -28,6 +28,12 @@
         .pagination .page-link:hover{background:#1d342d;color:#9cff57}
         .pagination .page-item.active .page-link{background:#9cff57;border-color:#9cff57;color:#101522}
         .pagination .page-item.disabled .page-link{background:#101522;color:#667085;border-color:#263149}
+        @if(request()->routeIs('dashboard'))
+        body{background:#171a2f}
+        body > .navbar, body > .footer{display:none}
+        body > main.container{max-width:none;padding:0!important;margin:0}
+        body > main.container{min-height:100vh}
+        @endif
     </style>
 </head>
 <body>
