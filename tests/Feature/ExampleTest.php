@@ -377,7 +377,10 @@ class ExampleTest extends TestCase
         $this->actingAs($employee)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertDontSee('Omzet lunas');
+            ->assertDontSee('Omzet lunas')
+            ->assertDontSee('Omzet hari ini')
+            ->assertDontSee('Tambah karyawan')
+            ->assertDontSee('<span class="nav-label">Katalog</span>', false);
 
         $this->actingAs($employee)->put(route('products.edit', $product), [
             'name' => 'Nama Baru',
@@ -395,6 +398,67 @@ class ExampleTest extends TestCase
             'price' => 25000,
             'stock' => 5,
         ]);
+    }
+
+    public function test_admin_dashboard_shows_only_paid_revenue_from_today(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin Omzet',
+            'email' => 'admin-omzet@example.test',
+            'staff_id' => 'ADMINOMZET',
+            'password' => 'TestPassword123!',
+            'role' => 'admin',
+            'active' => true,
+        ]);
+        Order::create([
+            'number' => 'RX-TODAY-PAID',
+            'customer_name' => 'Pelanggan Hari Ini',
+            'whatsapp' => '08111111111',
+            'total' => 12000,
+            'payment_method' => 'COD',
+            'payment_status' => 'Lunas',
+            'status' => 'Selesai',
+        ]);
+        Order::create([
+            'number' => 'RX-TODAY-CANCELLED',
+            'customer_name' => 'Pelanggan Batal',
+            'whatsapp' => '08222222222',
+            'total' => 90000,
+            'payment_method' => 'COD',
+            'payment_status' => 'Lunas',
+            'status' => 'Dibatalkan',
+        ]);
+        Order::create([
+            'number' => 'RX-TODAY-UNPAID',
+            'customer_name' => 'Pelanggan Belum Lunas',
+            'whatsapp' => '08333333333',
+            'total' => 80000,
+            'payment_method' => 'COD',
+            'payment_status' => 'Belum Dibayar',
+            'status' => 'Menunggu',
+        ]);
+        $oldOrder = Order::create([
+            'number' => 'RX-OLD-PAID',
+            'customer_name' => 'Pelanggan Kemarin',
+            'whatsapp' => '08444444444',
+            'total' => 70000,
+            'payment_method' => 'COD',
+            'payment_status' => 'Lunas',
+            'status' => 'Selesai',
+        ]);
+        $oldOrder->created_at = now()->subDay();
+        $oldOrder->save();
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Omzet hari ini')
+            ->assertSee('Rp 12.000')
+            ->assertSee('1 transaksi lunas hari ini')
+            ->assertDontSee('Tambah karyawan')
+            ->assertDontSee('<span class="nav-label">Katalog</span>', false);
+
+        $this->actingAs($admin)->post('/staff')->assertNotFound();
     }
 
     public function test_only_admin_can_print_paid_receipts(): void

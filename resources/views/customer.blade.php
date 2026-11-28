@@ -1,5 +1,6 @@
 @extends('layout')
 @section('content')
+{{-- DASHBOARD PELANGGAN: riwayat pesanan dan pengelolaan keranjang tamu/pelanggan. --}}
 <div class="d-flex justify-content-between">
     <div><span class="accent fw-bold">DASHBOARD PELANGGAN</span><h1 class="fw-bold text-white">Pesanan saya</h1></div>
     <a class="btn btn-success align-self-center" href="{{ route('home') }}">Belanja</a>

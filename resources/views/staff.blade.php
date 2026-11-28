@@ -3,6 +3,7 @@
 @section('title', 'Dashboard staf')
 
 @section('content')
+{{-- DASHBOARD STAF: CSS, navigasi panel, statistik, produk, stok, dan pesanan. --}}
 <style>
 .dashboard-shell{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh;background:#0b0f1a}
 .dashboard-sidebar{position:sticky;top:0;height:100vh;padding:22px 12px 18px;background:#101522;border-right:1px solid #263149}
@@ -28,6 +29,7 @@
 .dashboard-user b{display:block;color:#fff;font-size:13px}
 .avatar{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#1d342d;color:#9cff57;font-weight:800}
 .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.summary-grid.employee{grid-template-columns:repeat(2,minmax(0,1fr))}
 .summary-card{position:relative;overflow:hidden;height:136px;border:1px solid #263149!important;border-radius:10px;padding:18px 20px;background:#131a29!important}
 .summary-card.primary{background:linear-gradient(135deg,#1d342d 0%,#17271f 100%)!important}
 .summary-card .summary-label{display:block;color:#9da8bb;font-size:11px}
@@ -74,7 +76,7 @@
 .profile-menu .dropdown-menu{min-width:190px;padding:8px;border:1px solid #263149;background:#131a29}
 .profile-menu .dropdown-item{border-radius:6px;color:#eef1f7;font-size:13px}
 .profile-menu .dropdown-item:hover{background:#1d342d;color:#9cff57}
-@media(max-width:992px){.dashboard-shell{grid-template-columns:78px minmax(0,1fr)}.dashboard-sidebar{padding-inline:8px}.dashboard-brand{padding-inline:8px}.brand-name,.nav-label{display:none}.dashboard-nav a{justify-content:center;padding:0}.summary-grid{grid-template-columns:1fr}.summary-card{height:120px}}
+@media(max-width:992px){.dashboard-shell{grid-template-columns:78px minmax(0,1fr)}.dashboard-sidebar{padding-inline:8px}.dashboard-brand{padding-inline:8px}.brand-name,.nav-label{display:none}.dashboard-nav a{justify-content:center;padding:0}.summary-grid,.summary-grid.employee{grid-template-columns:1fr}.summary-card{height:120px}}
 @media(max-width:680px){.dashboard-shell{display:block}.dashboard-sidebar{position:relative;height:auto;width:100%;padding:10px}.dashboard-brand{display:none}.dashboard-nav{flex-direction:row;overflow:auto}.dashboard-nav a{min-width:46px}.dashboard-main{padding:18px 12px}.summary-grid{grid-template-columns:1fr}}
 </style>
 
@@ -82,8 +84,7 @@
 <aside class="dashboard-sidebar">
     <div class="dashboard-brand"><span class="brand-mark">R</span><span class="brand-name">Rexel Games</span></div>
     <nav class="dashboard-nav">
-        <a href="{{ route('home') }}"><span class="nav-icon">⌂</span><span class="nav-label">Katalog</span></a>
-        <a href="#dashboard-overview" class="active dashboard-link" data-panel="overview"><span class="nav-icon">♙</span><span class="nav-label">Ringkasan</span></a>
+        <a href="#dashboard-overview" class="active dashboard-link" data-panel="overview"><span class="nav-icon">♙</span><span class="nav-label">Dashboard</span></a>
         <a href="#products-panel" class="dashboard-link" data-panel="product-data" title="Data Produk" aria-label="Data Produk"><span class="nav-icon">▣</span><span class="nav-label">Data Produk</span></a>
         <a href="#add-product-panel" class="dashboard-link" data-panel="product-create" title="Tambah Produk" aria-label="Tambah Produk"><span class="nav-icon">＋</span><span class="nav-label">Tambah Produk</span></a>
         <a href="#stock-priorities" class="dashboard-link" data-panel="stock"><span class="nav-icon">▤</span><span class="nav-label">Prioritas Pembaruan Stok </span></a>
@@ -107,9 +108,6 @@
             <p>{{ strtoupper(auth()->user()->role) }} PANEL · REXEL GAMES</p>
         </div>
         <div class="dashboard-user">
-            @if(auth()->user()->role === 'admin')
-                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#staffModal">+ Tambah karyawan</button>
-            @endif
             <div class="dropdown profile-menu">
                 <button class="profile-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <span class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
@@ -134,10 +132,12 @@
     $cards = [
         'Produk' => number_format($stats['products']),
         'Stok tersedia' => number_format($stats['stock']) . ' unit',
-        'Omzet lunas' => 'Rp ' . number_format($stats['sales'], 0, ',', '.'),
     ];
+    if (auth()->user()->role === 'admin') {
+        $cards['Omzet hari ini'] = 'Rp ' . number_format($stats['daily_sales'], 0, ',', '.');
+    }
 @endphp
-<div class="summary-grid">
+<div class="summary-grid {{ auth()->user()->role === 'employee' ? 'employee' : '' }}">
     <div class="card summary-card primary">
         <span class="summary-label">Generic Playing</span><strong>{{ $cards['Produk'] }}</strong><small>Produk terdaftar</small>
         <div class="mini-bars"><i></i><i></i><i></i><i></i><i></i></div>
@@ -145,10 +145,12 @@
     <div class="card summary-card">
         <span class="summary-label">Total Case Today</span><strong>{{ $cards['Stok tersedia'] }}</strong><small>Stok tersedia</small><div class="donut"></div>
     </div>
-    <div class="card summary-card">
-        <span class="summary-label">Total</span><strong>{{ $cards['Omzet lunas'] }}</strong><small>{{ $stats['pending'] }} menunggu pembayaran</small>
-        <svg class="sparkline" viewBox="0 0 92 48" fill="none"><path d="M2 38L18 30L35 34L50 23L66 27L78 16L90 20" stroke="#9cff57" stroke-width="2"/><path d="M2 38L18 30L35 34L50 23L66 27L78 16L90 20V48H2Z" fill="#9cff57" opacity=".10"/><circle cx="78" cy="16" r="4" fill="#9cff57"/><circle cx="78" cy="16" r="7" stroke="#9cff57" opacity=".45"/></svg>
-    </div>
+    @if(auth()->user()->role === 'admin')
+        <div class="card summary-card">
+            <span class="summary-label">Omzet hari ini</span><strong>{{ $cards['Omzet hari ini'] }}</strong><small>{{ $stats['daily_paid_orders'] }} transaksi lunas hari ini</small>
+            <svg class="sparkline" viewBox="0 0 92 48" fill="none"><path d="M2 38L18 30L35 34L50 23L66 27L78 16L90 20" stroke="#9cff57" stroke-width="2"/><path d="M2 38L18 30L35 34L50 23L66 27L78 16L90 20V48H2Z" fill="#9cff57" opacity=".10"/><circle cx="78" cy="16" r="4" fill="#9cff57"/><circle cx="78" cy="16" r="7" stroke="#9cff57" opacity=".45"/></svg>
+        </div>
+    @endif
 </div>
 
 <div class="card dashboard-card dashboard-panel p-3 mb-3" id="stock-priorities" data-dashboard-panel="stock">
@@ -396,28 +398,8 @@
     </div>
 </div>
 
-@if(auth()->user()->role === 'admin')
-<div class="modal fade" id="staffModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post" action="{{ route('staff.create') }}">
-                @csrf
-                <div class="modal-header"><h5 class="text-white">Tambah akun karyawan</h5></div>
-                <div class="modal-body">
-                    <input class="form-control mb-2" name="name" placeholder="Nama" required>
-                    <input class="form-control mb-2" name="staff_id" placeholder="ID karyawan" required>
-                    <input class="form-control" type="password" name="password" placeholder="Password minimal 8 karakter" required>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Batal</button>
-                    <button class="btn btn-success">Buat akun</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@endif
 <script>
+    // JS DASHBOARD: pindah panel, buka submenu setting, dan atur kolom harga/stok.
 document.querySelectorAll('.dashboard-link').forEach(function(link) {
     link.addEventListener('click', function(event) {
         event.preventDefault();

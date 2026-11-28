@@ -3,6 +3,7 @@
 @section('title', 'Katalog | Rexel Games')
 
 @section('content')
+{{-- BAGIAN KATALOG: pencarian, hero, konsol, game/aksesoris, jasa, dan pagination. --}}
 <section class="hero mb-5">
     <span class="pill">PLAY YOUR WAY · PS3, PS4 & AKSESORIS</span>
     <h1 class="display-5 fw-bold mt-3 text-white">Game, aksesoris, dan jasa<br><span class="accent">PlayStation lengkap.</span></h1>

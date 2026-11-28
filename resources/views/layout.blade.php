@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="id">
 <head>
+    {{-- BAGIAN KEPALA: judul, font, Bootstrap, dan warna dasar seluruh halaman. --}}
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Rexel Games')</title>
@@ -37,6 +38,7 @@
     </style>
 </head>
 <body>
+    {{-- NAVIGASI: menu katalog, dashboard, login, logout, dan status tamu. --}}
     <nav class="navbar navbar-expand-lg border-bottom border-secondary-subtle">
         <div class="container py-2">
             <a class="navbar-brand" href="{{ route('home') }}">REXEL<span class="text-white"> GAMES</span></a>
@@ -58,6 +60,7 @@
         </div>
     </nav>
     <main class="container py-4">
+        {{-- PESAN SISTEM: tampilkan pemberitahuan sukses atau error di semua halaman. --}}
         @if(session('ok'))<div class="alert alert-success">{{ session('ok') }}</div>@endif
         @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
         @yield('content')

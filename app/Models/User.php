@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+// Model pengguna: menyimpan akun staf/pelanggan beserta role dan status aktif.
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */

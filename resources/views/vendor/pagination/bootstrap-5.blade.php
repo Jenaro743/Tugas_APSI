@@ -1,10 +1,14 @@
+{{-- Tampilkan navigasi hanya jika data memiliki lebih dari satu halaman. --}}
 @if ($paginator->hasPages())
+    {{-- Navigasi halaman sebelumnya dan berikutnya untuk daftar berpaginasi. --}}
     <nav aria-label="Navigasi halaman" class="d-flex gap-2 justify-content-center">
+        {{-- Nonaktifkan Previous di halaman pertama; selain itu gunakan URL halaman sebelumnya. --}}
         @if ($paginator->onFirstPage())
             <span class="btn btn-sm btn-outline-light disabled">Previous</span>
         @else
             <a class="btn btn-sm btn-outline-light" href="{{ $paginator->previousPageUrl() }}" rel="prev">Previous</a>
         @endif
+        {{-- Tampilkan Next jika masih ada halaman berikutnya, atau nonaktifkan jika sudah terakhir. --}}
         @if ($paginator->hasMorePages())
             <a class="btn btn-sm btn-success" href="{{ $paginator->nextPageUrl() }}" rel="next">Next</a>
         @else

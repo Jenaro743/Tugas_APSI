@@ -4,6 +4,7 @@
 
 @section('content')
 @php
+    // PEMBAYARAN DEMO: buat nomor virtual account palsu untuk tampilan.
     $vaNumber = '8808'.str_pad((string)$order->id, 12, '0', STR_PAD_LEFT);
 @endphp
 <div class="row justify-content-center">
@@ -14,6 +15,7 @@
             <p class="text-white-50">Pesanan <strong class="text-white">{{ $order->number }}</strong> menunggu pembayaran.</p>
 
             @if($order->payment_method === 'QRIS (DEMO)')
+                {{-- QRIS DEMO: pola kotak acak hanya untuk simulasi visual. --}}
                 <div class="text-center border border-secondary rounded-4 p-4 my-4">
                     <div class="d-inline-block bg-white p-3 rounded-3">
                         <svg width="240" height="240" viewBox="0 0 21 21" role="img" aria-label="QRIS palsu untuk demo">

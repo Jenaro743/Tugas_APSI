@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+/* SUMBER STYLE: Bootstrap ada di layout; Tailwind dipakai untuk utility bila diperlukan. */
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source "../**/*.blade.php";

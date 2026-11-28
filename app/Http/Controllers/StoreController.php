@@ -6,8 +6,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Auth,DB,Hash};
 use Illuminate\Validation\Rule;
 
+// Controller utama aplikasi toko: katalog, keranjang, checkout, dan dashboard.
 class StoreController extends Controller
 {
+ // KATALOG: cari produk, lalu pisahkan konsol, inventaris, dan jasa.
  public function home(Request $r){
   $base=Product::query();
   if($r->filled('q'))$base->where('name','like','%'.$r->q.'%');
@@ -17,6 +19,7 @@ class StoreController extends Controller
   $services=(clone $base)->where('platform','Jasa')->orderBy('name')->paginate(12,['*'],'service_page');
   return view('store',['inventory'=>$inventory,'consoles'=>$consoles,'services'=>$services]);
  }
+ // PRIORITAS STOK: hitung ranking aksesoris dari stok rendah dan jumlah penjualan.
  private function stockPriorities(){
   $products=Product::query()->where('platform','Aksesoris')->orderBy('category')->orderBy('name')->get();
   $sales=collect();
@@ -41,6 +44,7 @@ class StoreController extends Controller
    return $product;
   })->sortByDesc('saw_score')->values();
  }
+ // ATURAN STOK: game, jasa, dan aksesoris punya aturan ketersediaan berbeda.
  private function hasUnlimitedStock(Product $product): bool {
   return $product->platform==='Jasa'||(in_array($product->platform,['PS3','PS4'],true)&&strcasecmp(trim($product->category),'Konsol')!==0);
  }
@@ -51,7 +55,9 @@ class StoreController extends Controller
  public function login(){return view('login');}
  public function authenticate(Request $r){$data=$r->validate(['staff_id'=>'required|string','password'=>'required|string']);$u=User::where(fn($q)=>$q->where('staff_id',$data['staff_id'])->orWhere('email',$data['staff_id']))->where('active',true)->first();if(!$u||!Hash::check($data['password'],$u->password))return back()->withErrors(['staff_id'=>'ID, email, atau password tidak sesuai.'])->onlyInput('staff_id');Auth::login($u);$r->session()->regenerate();return redirect()->route('dashboard');}
  public function logout(Request $r){Auth::logout();$r->session()->invalidate();$r->session()->regenerateToken();return redirect()->route('home');}
- public function dashboard(){ $u=Auth::user();if(!$u&&session('guest'))return view('customer',['orders'=>collect()]);abort_unless($u,403);if($u->role==='customer')return view('customer',['orders'=>Order::where('user_id',$u->id)->latest()->get()]);abort_unless(in_array($u->role,['admin','employee']),403);$orders=Order::with('items')->latest()->paginate(15);$availableStock=Product::where('platform','Aksesoris')->orWhere(function($query){$query->whereIn('platform',['PS3','PS4'])->where('category','Konsol');})->sum('stock');$stats=['products'=>Product::count(),'stock'=>$availableStock,'pending'=>Order::where('payment_status','Belum Dibayar')->count(),'sales'=>Order::where('payment_status','Lunas')->sum('total'),'staff'=>User::where('role','employee')->count(),'customers'=>Order::distinct('whatsapp')->count('whatsapp')];return view('staff',['orders'=>$orders,'products'=>Product::orderBy('name')->get(),'stockPriorities'=>$this->stockPriorities(),'stats'=>$stats]);}
+ // DASHBOARD: tampilkan data sesuai role: tamu, pelanggan, karyawan, atau admin.
+ public function dashboard(){ $u=Auth::user();if(!$u&&session('guest'))return view('customer',['orders'=>collect()]);abort_unless($u,403);if($u->role==='customer')return view('customer',['orders'=>Order::where('user_id',$u->id)->latest()->get()]);abort_unless(in_array($u->role,['admin','employee']),403);$orders=Order::with('items')->latest()->paginate(15);$availableStock=Product::where('platform','Aksesoris')->orWhere(function($query){$query->whereIn('platform',['PS3','PS4'])->where('category','Konsol');})->sum('stock');$stats=['products'=>Product::count(),'stock'=>$availableStock];if($u->role==='admin'){$paidToday=Order::whereDate('created_at',today())->where('payment_status','Lunas')->where('status','!=','Dibatalkan');$stats['daily_sales']=(clone $paidToday)->sum('total');$stats['daily_paid_orders']=$paidToday->count();}return view('staff',['orders'=>$orders,'products'=>Product::orderBy('name')->get(),'stockPriorities'=>$this->stockPriorities(),'stats'=>$stats]);}
+ // KERANJANG: tambah satu item dan cegah jumlah melebihi stok.
  public function addCart(Request $r,Product $product){
   abort_unless(session('guest')||Auth::check(),403);
   $service=$product->platform==='Jasa';
@@ -73,6 +79,7 @@ class StoreController extends Controller
   return back();
  }
  public function removeCart(Request $r,Product $product){$c=session('cart',[]);unset($c[$product->id]);$r->session()->put('cart',$c);return back();}
+ // CHECKOUT: validasi data pembeli, kurangi stok, lalu buat pesanan dan item pesanan.
  public function checkout(Request $r){
   abort_unless(session('guest')||Auth::check(),403);
   $d=$r->validate(['customer_name'=>'required|string|max:120','whatsapp'=>'required|string|max:30','payment_method'=>['required',Rule::in(['COD','Virtual Account (DEMO)','QRIS (DEMO)'])]]);
@@ -105,6 +112,7 @@ class StoreController extends Controller
  public function payment(Order $order){$order->load('items');return view('payment',['order'=>$order]);}
  public function receipt(Order $order){if(Auth::check()&&Auth::user()->role==='customer')abort_unless($order->user_id===Auth::id(),403);$order->load('items');return view('receipt',['order'=>$order,'printMode'=>false]);}
  public function printReceipt(Order $order){abort_unless($order->payment_status==='Lunas',403);$order->load('items');return view('receipt',['order'=>$order,'printMode'=>true]);}
+ // PRODUK BARU: tentukan aturan harga/stok berdasarkan jenis dan kategori.
  public function createProduct(Request $r){
   $isPlaystation=in_array($r->input('platform'),['PS3','PS4'],true);
   $isConsole=$isPlaystation&&strcasecmp(trim($r->input('category','')),'Konsol')===0;
@@ -148,5 +156,4 @@ class StoreController extends Controller
  public function deleteProduct(Product $product){$product->delete();return back()->with('ok','Produk atau jasa berhasil dihapus.');}
  public function stock(Request $r,Product $product){abort_unless($product->platform==='Aksesoris',404);$d=$r->validate(['change'=>'required|integer|not_in:0']);DB::transaction(function()use($product,$d,$r){$p=Product::whereKey($product->id)->lockForUpdate()->first();$after=$p->stock+$d['change'];abort_if($after<0,422,'Stok tidak boleh negatif.');$p->update(['stock'=>$after]);DB::table('stock_logs')->insert(['product_id'=>$p->id,'user_id'=>Auth::id(),'before_stock'=>$p->stock-$d['change'],'change'=>$d['change'],'after_stock'=>$after,'type'=>$d['change']>0?'Penambahan':'Pengurangan','created_at'=>now(),'updated_at'=>now()]);});return back()->with('ok','Stok diperbarui.');}
  public function orderStatus(Request $r,Order $order){$d=$r->validate(['status'=>['required',Rule::in(['Diproses','Siap Diambil','Selesai','Dibatalkan'])],'payment_status'=>['nullable',Rule::in(['Lunas'])]]);if(isset($d['payment_status'])&&!in_array($order->payment_method,['COD','Virtual Account (DEMO)','QRIS (DEMO)'],true))abort(422,'Metode pembayaran tidak mendukung verifikasi manual.');$order->update(['status'=>$d['status'],'payment_status'=>$d['payment_status']??$order->payment_status]);return back()->with('ok','Pesanan diperbarui.');}
- public function createStaff(Request $r){$d=$r->validate(['name'=>'required|string|max:120','staff_id'=>'required|string|max:40|unique:users,staff_id','password'=>'required|string|min:8']);User::create(['name'=>$d['name'],'email'=>strtolower($d['staff_id']).'@rexel.local','staff_id'=>$d['staff_id'],'password'=>Hash::make($d['password']),'role'=>'employee','active'=>true]);return back()->with('ok','Akun karyawan dibuat.');}
 }

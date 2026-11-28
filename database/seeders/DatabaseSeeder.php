@@ -3,6 +3,8 @@ namespace Database\Seeders;
 use App\Models\{Product,User};
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+
+// Seeder demo: membuat akun staf, game, konsol, aksesoris, dan jasa awal.
 class DatabaseSeeder extends Seeder {
  public function run(): void {
   User::updateOrCreate(['staff_id'=>'ADMIN001'],['name'=>'Administrator Rexel','email'=>'admin@rexel.local','password'=>Hash::make('RexelAdmin123!'),'role'=>'admin','active'=>true]);
